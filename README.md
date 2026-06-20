@@ -95,3 +95,21 @@ For ~15 rooms shared by many staff, **per-space pricing (Places or Skedda) beats
 One caveat on the metrics: the "admin time saved" figure rests on explicit per-booking assumptions (in `metrics.py`) — tune those to your reality before quoting them, as they're the softest number in the set. The capacity figures are hard (derived from the actual schedule).
 
 Want me to wire up the Microsoft Graph read/write path next, or add the multi-day horizon to the optimiser?
+
+---
+
+# rooms ask part 2
+
+In addition, if not already included - i need a way to modify the room names and resources.
+
+I want you to create a new repo e.g. mmorrow24work/meetingroom-defrag and push the artifacts to it.
+
+I want a sales-pitch.md and power-point doc created. 
+
+I also want markdown docs and MS Word docs - a user guide for new users and a second for super users include screenshots of the frontend web UI.
+
+I also need a QUICKSTART.md that walks through hosting the solution.
+
+All code created should be saved to a code folder with accompanying markdown docs for each python script ( i assume we are using python ) doing a code review walk through for future code maintenance.
+
+---
