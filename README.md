@@ -113,3 +113,39 @@ I also need a QUICKSTART.md that walks through hosting the solution.
 All code created should be saved to a code folder with accompanying markdown docs for each python script ( i assume we are using python ) doing a code review walk through for future code maintenance.
 
 ---
+
+Good additions. Before I build the docs, two things gate the work: getting a real browser so the screenshots in the guides are genuine, and adding the room-editing feature so it appears in those screenshots. Let me sort the browser first, then build the feature.
+
+Chromium works — real screenshots it is. Now the room-editing feature (backend endpoints + admin UI), so it's in the system before I screenshot it.
+
+Now the admin Rooms editor in the frontend.
+
+The room-editing code is already present — let me verify it's complete and correct rather than duplicate it.
+
+The room editor exists but I need to verify the supporting CSS and the admin tab reveal, and reconcile the save response shape. Let me check.
+
+Everything's wired (CSS, admin reveal, boot). One mismatch: the backend returns `{room, now_infeasible_bookings}` but `saveRoom` treats the response as the room. Let me fix the frontend to use the richer response and warn on over-capacity.
+
+Room editor reconciled. Now let me restructure into the final repo layout (`code/` folder + docs/assets/presentation) before capturing screenshots and writing docs.
+
+Now the screenshot tool (also serves as the single-container static-serve option), then I'll capture real UI screenshots.
+
+Screenshots captured. Let me verify they rendered correctly.
+
+That looks great — real, polished UI. Let me check the broker result and rooms editor shots.
+
+One issue in the result preview: freed rooms still show their old bookings because the preview highlights freed rooms over the *current* layout. Let me make the preview render the *proposed* (defragmented) layout so freed rooms are genuinely empty — that's both truthful and a stronger visual.
+
+Now re-capture with the truthful proposed-layout preview.
+
+The defragmentation is now visually obvious — freed rooms empty and glowing, active meetings packed into three rooms. Let me check the rooms editor and login shots.
+
+All five screenshots are real and high quality, and the room editor is captured. Now I'll read the docx and pptx skills before building those deliverables.
+
+I have what I need. Let me get the screenshot dimensions so images scale correctly in the docs.
+
+Dimensions noted. Now I'll write the documentation set. Starting with the sales pitch, quickstart, README, and the two user guides (which reference the screenshots).
+
+Now the two user guides in markdown (these feed the Word versions).
+
+Now the per-script code-review docs for maintainers. Starting with an index and the core modules.
