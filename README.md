@@ -1,4 +1,24 @@
-# rooms
+# rooms ask part 1
+
+At my workplace, we have around 15 meeting rooms which can be booked using MS Office, users can view the rooms availabilty and resouces such number of seats, whiteboard, video conferencing system, 60 inch monitor, room format ( lecture or round-table) - then invite the available room to the meeting, if all goes well, the user will recieve an email confirming the reservation.
+
+This works, but i feel like it could be improved in a number of ways such as:
+
+1/ if i want to book a meeting room for an entire day - it often fails because a room might already have a 1 hr booking already.
+
+2/ there is no optimisation in place either before meeting rooms are booked or after
+
+I envisage a solution which uses a broker to allocate rooms based on resources, duration, priority level e.g. 1=client meeting, 2=recruitment interview, 3=team meeting, 4=one to one meeting, 5=solo or quiet time - it also allows users with a special code to jump the queue or even cancel existing bookings in extreme cases.
+
+The broker should be able to move meetings around if neccessary to optimise the resources, and scheduled times so long as the minimal meeting requirements are met and the users agree to the changes.
+
+Use docker containers hosted by WSL2 to create a broker system with a web page frontend which allows authenticated users to make bookings based on the examples provided.
+
+Also create a backend simulation of the meeting rooms to test and demo the solution. I want to be able evaluate how effective the broker is in terms of room optimation and time saved booking a room. I want to run scenarios where an un-optimsed schedule is analysed by the broker and then changes are made and the improvment is quantified in terms of percentage resources gained or made avaulable - e.g. with broker optimisation we have gained the equivalent of 3x 10 seat rooms.
+
+Feel free to suggest ideas that might be worth considering.
+
+Find off the shelf solutions that can meet the requirements, and get pricing.
 
 
 ---
