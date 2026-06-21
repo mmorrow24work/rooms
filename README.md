@@ -308,8 +308,40 @@ You started the list with "1)", so I expect you've got more in mind. The natural
 
 # rooms ask part 7
 
-create mermaid diagram showing the software architecture
-
----
 what other mermaid diagrams might be helpful here for future code maintainers ?
 
+---
+
+For this codebase specifically, the diagrams that earn their keep are the ones covering the parts a maintainer can't infer by reading one file — the cross-module flows and the rule-dense functions. Here's how I'd prioritise them, tied to the actual code.
+
+**Build these first — highest maintenance payoff**
+
+A **sequence diagram of the propose → apply broker flow**. This is the most non-obvious control flow in the system: `/api/optimise` runs the solver and stashes the result in `S.last_proposal` but *changes nothing*; the frontend then previews the proposed layout; `/api/optimise/apply` (admin-only) writes it back. The two-step "nothing mutates until applied" design is exactly the thing someone will accidentally collapse during a refactor. A sequence across browser → nginx → `main.py` → `optimizer` → `metrics` → State makes the contract obvious. Maps to `main.md`.
+
+A **class diagram of the domain model**. `models.py` is the vocabulary everything else is downstream of — `Room` and `BookingRequest` with their fields, the 30-minute slot model, and especially the `time_locked` / `pinned` movement flags and `room_ok()` as the single feasibility gate. One picture orients a newcomer faster than the prose in `models.md`, and it makes the "add a new resource → touch these three places" rule visible.
+
+A **flowchart of `allocate_one`'s decision path**. This function is rule-dense and easy to break: feasible rooms → right-size sort (smallest adequate, prefer already-used) → first free slot → else, if override, bump *only strictly-lower-priority* clashers. The queue-jump branch in particular has a subtle invariant ("never bump equal-or-higher priority") that a flowchart pins down. Maps to `main.md`.
+
+**Worth having — situational but real**
+
+A **flow/structure diagram of the CP-SAT model** (`optimizer.py`): inputs → decision vars (only feasible combos) → constraints (place-once, no-overlap, movement flags) → weighted objective terms → warm start → result. This is the cleverest, least-obvious code and the part most likely to be tuned blindly; a diagram of how the weights map to behaviour would save a maintainer from breaking optimality or the monotonic-improvement guarantee.
+
+A **state/lifecycle diagram of the `State` store** — seed-vs-load on startup, `save()` after every mutation, the `BROKER_DATA_DIR` gating, the volume. Small, but it targets the precise confusion that already bit you (why an edit did or didn't persist), so it's worth the few minutes.
+
+A **deployment diagram** for the production topology from QUICKSTART §6 (edge TLS, frontend public, backend private, the volume, and the future Postgres/Graph swap). This is more for whoever operationalises it than for code maintenance, but it's the natural home for those notes.
+
+**Lower priority / I'd skip**
+
+A route/API map is mostly redundant with the Swagger UI at `/docs`. A module-dependency graph overlaps what the architecture diagram already shows. The frontend tab transitions (`setTab`) are simple enough that the code reads faster than a diagram would.
+
+One ergonomics suggestion regardless of which you pick: embed each diagram in the matching `docs/code-review/*.md` (sequence in `main.md`, class in `models.md`, and so on) rather than only in `docs/diagrams/`, so a maintainer reading about a file finds its picture right there.
+
+If you want, I'll build the top three now in the same dark style, validated and committed alongside `architecture.md` — or all six. Which set?
+
+---
+
+# rooms ask part 7
+
+build the top three now in the same dark style, validated and committed alongside `architecture.md`
+
+---
