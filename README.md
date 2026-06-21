@@ -238,3 +238,69 @@ To pick it up: re-pull the zip, then on your box `docker compose up --build`. If
 
 One thing worth flagging: the JSON-on-a-volume store is right for a PoC and single backend instance, but it's last-write-wins and not built for concurrency. The moment you run more than one backend replica or want audit history, that's the cue to move to Postgres (the seam is the `State` class — its `save`/`_load` methods are the only thing that needs swapping). Want me to add a Postgres-backed store as an optional profile, or leave that for the production phase?
 
+---
+
+# rooms ask part 6
+
+create mermaid diagram showing the software architecture
+
+---
+
+On it — here's the software architecture as a Mermaid diagram. Let me build it, validate that it renders, and add it to the repo.Rendered successfully. Let me verify it looks right.Clean and accurate. Let me add a GitHub-renderable markdown wrapper, link it from the README, commit, and refresh the bundle.Here's the software architecture diagram. I've validated it renders, added it to the repo, and committed it (third commit).
+
+The Mermaid source:
+
+```mermaid
+flowchart TB
+    user(["User / Admin<br/>web browser"])
+
+    subgraph host["WSL2 host · Docker Compose"]
+        direction TB
+
+        subgraph fe["frontend container · nginx :8080"]
+            spa["Single-page console<br/>(index.html)<br/>board · booking · proposal · room editor"]
+            proxy["nginx reverse proxy<br/>serves SPA · routes /api → backend"]
+        end
+
+        subgraph be["backend container · uvicorn / FastAPI :8000"]
+            api["main.py<br/>REST API · RBAC · State store"]
+            auth["auth.py<br/>token + override code"]
+            alloc["allocate_one<br/>greedy right-sizing (single booking)"]
+            opt["optimizer.py<br/>OR-Tools CP-SAT broker (whole-day re-opt)"]
+            met["metrics.py<br/>before/after quantification"]
+            seed["seed.py<br/>15-room estate + scenario simulator"]
+            models["models.py<br/>Room · BookingRequest · 30-min slot model"]
+        end
+
+        vol[("broker-data volume<br/>state.json")]
+    end
+
+    ortools{{"Google OR-Tools<br/>CP-SAT solver"}}
+
+    user -->|"HTTP :8080"| proxy
+    proxy --> spa
+    spa -->|"fetch /api/*"| proxy
+    proxy -->|"proxy_pass /api/*"| api
+    user -. ":8000 Swagger /docs" .-> api
+
+    api --> auth
+    api --> alloc
+    api --> opt
+    api --> met
+    api --> seed
+    opt --> ortools
+
+    alloc --> models
+    opt --> models
+    met --> models
+    seed --> models
+
+    api <-->|"load on start · save on every change<br/>(BROKER_DATA_DIR set)"| vol
+```
+
+It shows the request path (browser → nginx → SPA, then `/api` proxied to FastAPI), the backend modules and how they all sit on the shared `models.py` slot model, the optimiser's dependency on OR-Tools, the optional direct Swagger access on :8000, and the load/save link to the persisted `broker-data` volume.
+
+In the repo it lives at `docs/diagrams/` as three files — `architecture.mmd` (source), `architecture.md` (renders inline on GitHub), and `architecture.png` (raster for slides/Word) — and the README now links to it. The refreshed git-ready zip includes all of it.
+
+You started the list with "1)", so I expect you've got more in mind. The natural companions, whenever you want them: a **sequence diagram** for the "run broker → propose → apply" flow, a **data/domain model** (Room ↔ BookingRequest), a **deployment** view (the server/Cloudflare-Tunnel options from QUICKSTART), or a **booking decision flow** (allocator + queue-jump logic). Say which and I'll add them in the same style.
+
