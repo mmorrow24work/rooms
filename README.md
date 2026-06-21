@@ -345,3 +345,228 @@ If you want, I'll build the top three now in the same dark style, validated and 
 build the top three now in the same dark style, validated and committed alongside `architecture.md`
 
 ---
+
+Building all three now in the matching dark style. First the shared theme config and the three diagram sources.broker-flow had a parse error. Let me see it.`opt` collides with a reserved sequence-diagram keyword — I named a participant `OPT`. Renaming it.All three render now. Let me visually verify each.The diagrams are accurate, but with a transparent background the message text is low-contrast on white (GitHub/Word). Let me re-render all four PNGs on a solid dark background so they're readable everywhere and visually consistent.All three are accurate and readable. Now the GitHub-renderable wrappers, an index, and embedding into the matching code-review docs.Now update the README pointer, commit, and repackage.Done — all three built, validated by rendering, and committed (fourth commit).
+
+**1. Broker flow (sequence)** — the propose→apply contract: `/api/optimise` runs the solver and stashes a proposal but writes nothing; `/api/optimise/apply` is admin-gated, commits the new room/start onto each booking, and persists via `save()`. The `alt` fragment shows the 403 path for non-admins.
+
+**2. Domain model (class)** — `Room`, `BookingRequest` (with the `time_locked`/`pinned` flags and `room_ok()`/`start_window()` methods), and the `SlotModel` constants/helpers, with the assignment-vs-feasibility relationships and amber notes on the rules.
+
+**3. Allocator decision path (flowchart)** — `allocate_one()`: feasible rooms → right-size + packing sort → first free slot, else the override branch that bumps **strictly lower-priority** clashers, with the three distinct 409 outcomes.
+
+They're rendered on a dark background so they stay legible on GitHub (light mode) and inside the Word docs, and they reuse the architecture palette (amber actors/terminals, slate steps, blue decisions, teal success, red failure).
+
+In the repo, each is three files under `docs/diagrams/` — `.mmd` source, `.md` GitHub-renderable wrapper, `.png` raster — listed in a new `docs/diagrams/README.md` index. Per the ergonomics note, the sequence and allocator diagrams are also embedded directly in `docs/code-review/main.md` and the class diagram in `models.md`, so a maintainer reading about a file finds its picture in place. The refreshed git-ready zip has everything; that's now four commits to push.
+
+If you want the remaining three I flagged — CP-SAT model structure, the `State` persistence lifecycle, and the deployment topology — say the word and I'll add them in the same style.
+
+--- 
+
+# rooms ask part 8
+
+Use mermaid so i can edit the drawings using text
+
+---
+
+Everything's already Mermaid text — the diagrams in the repo are `.mmd` source files plus ` ```mermaid ` blocks embedded in the docs, not images. The PNGs are just rendered copies. Here's the editable source for all four so you can paste into any Mermaid editor (mermaid.live, VS Code, GitHub) and change them.Here's the editable Mermaid source for all four. Paste any of these into [mermaid.live](https://mermaid.live), the VS Code Mermaid preview, or a ` ```mermaid ` block on GitHub and edit the text directly.
+
+**1. Software architecture**
+
+```mermaid
+flowchart TB
+    user(["User / Admin<br/>web browser"])
+
+    subgraph host["WSL2 host · Docker Compose"]
+        direction TB
+
+        subgraph fe["frontend container · nginx :8080"]
+            spa["Single-page console<br/>(index.html)<br/>board · booking · proposal · room editor"]
+            proxy["nginx reverse proxy<br/>serves SPA · routes /api → backend"]
+        end
+
+        subgraph be["backend container · uvicorn / FastAPI :8000"]
+            api["main.py<br/>REST API · RBAC · State store"]
+            auth["auth.py<br/>token + override code"]
+            alloc["allocate_one<br/>greedy right-sizing (single booking)"]
+            opt["optimizer.py<br/>OR-Tools CP-SAT broker (whole-day re-opt)"]
+            met["metrics.py<br/>before/after quantification"]
+            seed["seed.py<br/>15-room estate + scenario simulator"]
+            models["models.py<br/>Room · BookingRequest · 30-min slot model"]
+        end
+
+        vol[("broker-data volume<br/>state.json")]
+    end
+
+    ortools{{"Google OR-Tools<br/>CP-SAT solver"}}
+
+    user -->|"HTTP :8080"| proxy
+    proxy --> spa
+    spa -->|"fetch /api/*"| proxy
+    proxy -->|"proxy_pass /api/*"| api
+    user -. ":8000 Swagger /docs" .-> api
+
+    api --> auth
+    api --> alloc
+    api --> opt
+    api --> met
+    api --> seed
+    opt --> ortools
+
+    alloc --> models
+    opt --> models
+    met --> models
+    seed --> models
+
+    api <-->|"load on start · save on every change<br/>(BROKER_DATA_DIR set)"| vol
+
+    classDef container fill:#1f2733,stroke:#3b82c4,color:#e6edf3;
+    classDef module fill:#222a35,stroke:#5d6b7c,color:#e6edf3;
+    classDef store fill:#3a2f0a,stroke:#f2b705,color:#f2b705;
+    classDef ext fill:#10241f,stroke:#1f9e8f,color:#9fe3d6;
+    classDef actor fill:#2a3340,stroke:#f2b705,color:#f2b705;
+
+    class fe,be container;
+    class spa,proxy,api,auth,alloc,opt,met,seed,models module;
+    class vol store;
+    class ortools ext;
+    class user actor;
+```
+
+**2. Broker flow — propose then apply (sequence)**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User / Admin
+    participant SPA as Frontend SPA<br/>(nginx)
+    participant API as main.py<br/>(FastAPI)
+    participant OPTM as optimizer.py<br/>(CP-SAT)
+    participant MET as metrics.py
+    participant ST as State store
+    participant VOL as broker-data<br/>volume
+
+    Note over U,VOL: PROPOSE — read-only, mutates nothing
+    U->>SPA: Click "Run broker"
+    SPA->>API: POST /api/optimise (Bearer token)
+    API->>API: current_user() — any authenticated
+    API->>ST: read rooms + bookings (incumbent)
+    API->>OPTM: optimise(rooms, requests)
+    OPTM-->>API: assignments + moved + status
+    API->>MET: compare(before, after)
+    MET-->>API: headline metrics
+    API->>ST: stash S.last_proposal (no disk write)
+    API-->>SPA: proposal {moves, metrics, assignments}
+    SPA->>SPA: preview defragmented board<br/>(freed rooms glow, moved = dashed)
+
+    Note over U,VOL: APPLY — admin only, commits + persists
+    U->>SPA: Click "Apply N changes"
+    SPA->>API: POST /api/optimise/apply
+    API->>API: require role == admin
+    alt not admin
+        API-->>SPA: 403 Forbidden
+    else admin & proposal exists
+        API->>ST: write new (room_id, start) onto bookings
+        API->>VOL: save() → state.json (atomic)
+        API->>ST: clear S.last_proposal
+        API-->>SPA: { applied_moves: N }
+        SPA->>API: GET /api/bookings (refresh)
+        API-->>SPA: committed schedule
+        SPA->>SPA: redraw board in tidy state
+    end
+```
+
+**3. Domain model (class)**
+
+```mermaid
+classDiagram
+    direction LR
+
+    class Room {
+        +str id
+        +str name
+        +int seats
+        +bool whiteboard
+        +bool vc
+        +bool monitor
+        +str fmt
+        +as_dict() dict
+    }
+
+    class BookingRequest {
+        +str id
+        +str title
+        +str owner
+        +int priority
+        +int seats
+        +int duration
+        +bool need_whiteboard
+        +bool need_vc
+        +bool need_monitor
+        +str need_fmt
+        +int earliest
+        +int latest
+        +Optional~str~ room_id
+        +Optional~int~ start
+        +bool time_locked
+        +bool pinned
+        +as_dict() dict
+        +room_ok(Room) bool
+        +start_window() range
+    }
+
+    class SlotModel {
+        <<module>>
+        +DAY_START_MIN = 480
+        +SLOT_MINUTES = 30
+        +SLOTS_PER_DAY = 20
+        +PRIORITY_LABELS
+        +slot_to_hhmm(int) str
+        +hhmm_to_slot(str) int
+    }
+
+    BookingRequest --> Room : assigned via room_id / start
+    BookingRequest ..> Room : room_ok(room) — feasibility gate
+    BookingRequest ..> SlotModel : duration / earliest / latest / start in slots
+    Room ..> SlotModel : occupies slots
+
+    note for Room "fmt: round_table | lecture | flexible<br/>(a flexible room satisfies any requested format)"
+    note for BookingRequest "priority 1 = highest .. 5 = lowest<br/>time_locked: start fixed, room may still change<br/>pinned: neither room nor time changes<br/>room_ok() is the single feasibility gate (capacity + resources + format)"
+```
+
+**4. Allocator decision path — `allocate_one()` (flowchart)**
+
+```mermaid
+flowchart TB
+    start([New booking request]) --> cand["Candidate rooms = rooms passing room_ok()<br/>capacity ≥ seats · has required VC / monitor / whiteboard · format ok"]
+    cand --> anyc{Any candidate<br/>rooms?}
+    anyc -- No --> fail1[/"409 — no room meets the requirements"/]
+    anyc -- Yes --> sort["Sort candidates:<br/>1. smallest adequate seats (right-size)<br/>2. prefer already-used rooms (keep whole rooms free)"]
+    sort --> scan["Scan room × start across the request's time window"]
+    scan --> free{Free slot<br/>found?}
+    free -- Yes --> assign["Assign room + start<br/>(right-sized, nothing displaced)"]
+    assign --> okp([placed ✓])
+    free -- No --> ovr{Valid override code?<br/>can_override AND code matches}
+    ovr -- No --> fail2[/"409 — none free;<br/>a special code may allow a queue-jump"/]
+    ovr -- Yes --> scan2["Scan candidate slots for one whose clashing<br/>bookings are ALL strictly lower priority"]
+    scan2 --> bump{Such a slot?}
+    bump -- No --> fail3[/"409 — none free even with override"/]
+    bump -- Yes --> cancel["Cancel the lower-priority clashers"]
+    cancel --> assign2["Assign room + start"]
+    assign2 --> okq([placed ✓ — queue-jumped,<br/>displaced N bookings])
+
+    classDef startend fill:#2a3340,stroke:#f2b705,color:#f2b705;
+    classDef step fill:#222a35,stroke:#5d6b7c,color:#e6edf3;
+    classDef dec fill:#1f2733,stroke:#3b82c4,color:#e6edf3;
+    classDef good fill:#10241f,stroke:#1f9e8f,color:#9fe3d6;
+    classDef bad fill:#2e1416,stroke:#e5484d,color:#f4b9bb;
+
+    class start startend;
+    class cand,sort,scan,scan2,cancel,assign,assign2 step;
+    class anyc,free,ovr,bump dec;
+    class fail1,fail2,fail3 bad;
+    class okp,okq good;
+```
+
+In the repo this same text is at `docs/diagrams/*.mmd` (raw source), in the ` ```mermaid ` wrappers in `docs/diagrams/*.md`, and embedded in `docs/code-review/main.md` and `models.md` — edit any of those and GitHub re-renders automatically.
+
+A couple of editing notes from building these: the `classDef`/`class` lines only style the rendered output, so you can delete them harmlessly if you just want plain shapes; and watch out for reserved words as node/participant IDs in sequence diagrams — that's why the optimizer participant is `OPTM`, not `OPT` (`opt` is the keyword for an optional fragment).
