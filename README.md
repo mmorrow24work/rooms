@@ -20,7 +20,6 @@ Feel free to suggest ideas that might be worth considering.
 
 Find off the shelf solutions that can meet the requirements, and get pricing.
 
-
 ---
 
 This is a meaty one — a custom optimising broker plus a market scan. Let me research the off-the-shelf options and current pricing first (that's live data), then build you a runnable PoC and validate the optimiser with real numbers.
@@ -146,6 +145,96 @@ I have what I need. Let me get the screenshot dimensions so images scale correct
 
 Dimensions noted. Now I'll write the documentation set. Starting with the sales pitch, quickstart, README, and the two user guides (which reference the screenshots).
 
+---
+
+# rooms ask part 3
+
+Has this all been pushed to github?
+---
+
+No — nothing has been pushed, and I should be upfront about why: I don't have access to your GitHub account. I have no credentials or token for `mmorrow24work`, and there's no connected GitHub tool in this session, so I can't create the `meetingroom-defrag` repo or push to it on your behalf. Anything claiming otherwise would be me pretending.
+
+What I've actually done so far is build everything locally in the sandbox: the room-editing feature, the real UI screenshots, the README/QUICKSTART/sales-pitch/market-scan, the two user guides, and the per-script code-review docs. Still on my list before packaging: the two Word docs, the PowerPoint, and a `push-to-github.sh`.
+
+The clean way to get it to GitHub is for me to hand you a **git-ready repo** — initialised, committed, with a one-command push script — so you run a single command on your machine where you're already authenticated:
+
+```bash
+# from inside the unzipped meetingroom-defrag/
+gh repo create mmorrow24work/meetingroom-defrag --private --source=. --remote=origin --push
+```
+
+or if the repo already exists:
+
+```bash
+git remote add origin git@github.com:mmorrow24work/meetingroom-defrag.git
+git push -u origin main
+```
+
+I'll `git init`, stage everything, and make an initial commit inside the bundle so the history is ready and you just push.
+
+Want me to finish the Word docs + PowerPoint first and then package the whole thing as one git-ready zip, or would you rather I stop and hand over what's built now so you can push immediately and I add the deck/Word docs in a follow-up?
+
 Now the two user guides in markdown (these feed the Word versions).
 
 Now the per-script code-review docs for maintainers. Starting with an index and the core modules.
+
+---
+
+# rooms ask part 4
+
+Yes, finish up and give me a git-ready zip
+
+---
+
+Finishing up. First the Compose file and env (updated for the `code/` layout), then Word docs, the deck, and the git-ready bundle.Now the Word docs. Installing docx-js and building both guides with embedded screenshots.Let me validate the Word docs and visually confirm they render (especially the images).Word docs validated and rendering cleanly with the screenshots. Now the PowerPoint — reading the pptx skill first.Good. Now I'll build the deck with pptxgenjs, embedding the real screenshots and matching the product's dark-slate/amber identity.Deck built. QA pass — render to images and inspect for overflow/overlap.Deck QA passed — clean, consistent, on-brand. Now the push script, then I'll initialise git and package the git-ready bundle.Git is initialised with a clean initial commit (40 files). Let me do a final structure check and package the whole git-ready repo.Done. The bundle is **git-ready** — it includes a `.git` directory with an initial commit already made, so you just unzip and push (no `git init` needed).
+
+## To push it
+
+```bash
+unzip meetingroom-defrag.zip && cd meetingroom-defrag
+./push-to-github.sh          # uses gh to create mmorrow24work/meetingroom-defrag (private) and push
+```
+
+If you don't use `gh`, the script prints the manual `git remote add … && git push` commands instead. (I still can't push it myself — no access to your GitHub account from here.)
+
+## What's in it
+
+Everything you asked for, on top of the existing broker:
+
+- **Room editing** — admins get a *Manage rooms* tab to rename rooms and change seats / format / resources live; backend gained `POST/PUT/DELETE /api/rooms` (admin-gated, with an over-capacity warning if you shrink a room below an existing booking).
+- **`code/` folder** — all backend (Python), frontend, and the screenshot tool, with a Docker Compose updated for the new layout.
+- **`docs/code-review/`** — one markdown walkthrough per Python script (purpose, structure, gotchas, extension points) for future maintenance, plus an index that explains the data flow.
+- **User guides** — `user-guide.md/.docx` (everyday users) and `superuser-guide.md/.docx` (admins/override), both with the **real UI screenshots** embedded — captured from the running app with a headless browser, not mocked.
+- **`sales-pitch.md`**, **`MARKET-SCAN.md`**, **`QUICKSTART.md`** (hosting walkthrough: WSL2, single-container, VM, Cloudflare Tunnel, hardening).
+- **`presentation/meetingroom-defrag.pptx`** — a 9-slide overview deck (problem → broker → measured result → before/after screenshots → control → build-vs-buy → how it works → the ask), in the product's dark-slate/amber identity.
+
+A couple of honest notes: the screenshots show the demo schedule, so the headline figures on them (e.g. 13→3 rooms) are from that specific day — the guides quote the multi-seed averages where it matters. And the "admin time saved" number still rests on two tunable assumptions in `metrics.py`; the capacity figures are hard.
+
+Want me to add a short `CHANGELOG.md` / release notes for this v1, or wire the Microsoft Graph read path next?
+
+---
+
+# rooms ask part 5
+
+i changed a room name and saved it - but it was not persisted through a docker compose stop / start
+
+---
+
+That's expected, not a glitch — and it's worth fixing properly. The backend keeps all state (rooms *and* bookings) **in memory**; the container re-seeds the demo day every time it starts, so your room rename was lost on `stop`/`start`. I built it that way deliberately for a resettable demo, but a saved room edit genuinely should survive a restart. Let me add a small persistence layer (a JSON file on a Docker volume) so it does.
+
+Let me look at the current state handling and wire in persistence.I'll add a JSON-on-volume persistence layer, gated by an env var so the demo stays resettable when you want it.Now add `save()` calls after each mutation. Let me view the relevant endpoints.Now wire the volume into Compose and test persistence end-to-end.Persistence verified — the rename survives a simulated restart, bookings and the id counter restore correctly. Let me confirm the in-memory mode (no env var) still re-seeds, so the demo/screenshot path is unchanged.Both modes behave correctly. Now I'll update the docs that previously said state resets on restart, so they match the new persistence behaviour.Let me regenerate the Word docs so the super-user guide's operational note matches.Persistence note propagated. Let me commit the change and repackage the git-ready bundle.Fixed. That wasn't a glitch — the backend held everything (rooms *and* bookings) in memory and re-seeded on every container start, so your rename was discarded. I've added a persistence layer and committed it (second commit in the bundle).
+
+What changed:
+
+- **State now persists to a JSON file** (`state.json`) on a named Docker volume `broker-data`, mounted at `/data`. It saves after every change — booking, cancellation, room add/edit/delete, applying an optimisation, loading a scenario — and reloads on startup. Writes are atomic (temp file + `os.replace`), and the booking-id counter is restored from the saved data.
+- **`docker-compose.yml`** gained the volume and `BROKER_DATA_DIR=/data`. Because it's a *named* volume, state survives `stop`/`start`, `restart`, **and** `down` — only `docker compose down -v` wipes it back to the seeded demo day.
+- **Opt-in by design:** persistence is gated on `BROKER_DATA_DIR`. With it set (the Compose default) everything persists; unset, it runs the old resettable in-memory mode — which is what the screenshot tool and quick demos use.
+
+I verified it end to end: renamed R01 to "Boardroom Alpha" (9 seats), rebuilt the State from disk to simulate a restart, and it came back renamed with all 24 bookings and the right next id. I also confirmed the no-env-var path still re-seeds.
+
+Docs updated to match (QUICKSTART §4, the super-user guide in both `.md` and `.docx`, and the code-review walkthrough for `main.py`).
+
+To pick it up: re-pull the zip, then on your box `docker compose up --build`. If you already pushed the first commit, this is just one more commit to push (`git push`), or re-run `./push-to-github.sh`.
+
+One thing worth flagging: the JSON-on-a-volume store is right for a PoC and single backend instance, but it's last-write-wins and not built for concurrency. The moment you run more than one backend replica or want audit history, that's the cue to move to Postgres (the seam is the `State` class — its `save`/`_load` methods are the only thing that needs swapping). Want me to add a Postgres-backed store as an optional profile, or leave that for the production phase?
+
