@@ -304,3 +304,12 @@ In the repo it lives at `docs/diagrams/` as three files — `architecture.mmd` (
 
 You started the list with "1)", so I expect you've got more in mind. The natural companions, whenever you want them: a **sequence diagram** for the "run broker → propose → apply" flow, a **data/domain model** (Room ↔ BookingRequest), a **deployment** view (the server/Cloudflare-Tunnel options from QUICKSTART), or a **booking decision flow** (allocator + queue-jump logic). Say which and I'll add them in the same style.
 
+---
+
+# rooms ask part 7
+
+create mermaid diagram showing the software architecture
+
+---
+what other mermaid diagrams might be helpful here for future code maintainers ?
+
